@@ -11,17 +11,8 @@
 
 **[View Live Application →](https://eaglepython.github.io/DOM-Project)**
 
-## 📸 Screenshots
+<img width="1524" height="881" alt="image" src="https://github.com/user-attachments/assets/42c7867e-8c58-4ef7-ba8a-ad34f0f9cee0" />
 
-<div align="center">
-  <img src="https://via.placeholder.com/800x400/6366f1/ffffff?text=BookVault+Dashboard" alt="BookVault Dashboard" width="800">
-  <p><em>Modern dashboard with curated book collection</em></p>
-</div>
-
-<div align="center">
-  <img src="https://via.placeholder.com/800x400/8b5cf6/ffffff?text=Book+Details+Modal" alt="Book Details" width="800">
-  <p><em>Detailed book information with authentic metadata</em></p>
-</div>
 
 ## ✨ Features
 
