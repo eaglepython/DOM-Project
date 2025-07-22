@@ -1,0 +1,443 @@
+/* Custom CSS for Advanced Book Store */
+
+/* Smooth scrolling and animations */
+* {
+    scroll-behavior: smooth;
+}
+
+/* Custom animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+@keyframes bounce {
+    0%, 20%, 53%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40%, 43% {
+        transform: translateY(-10px);
+    }
+    70% {
+        transform: translateY(-5px);
+    }
+    90% {
+        transform: translateY(-2px);
+    }
+}
+
+/* Book card animations */
+.book-card {
+    animation: fadeInUp 0.5s ease-out;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+}
+
+.book-card:hover {
+    transform: translateY(-8px) rotateX(5deg);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.book-card.list-view {
+    animation: slideInRight 0.4s ease-out;
+}
+
+/* Book cover image effects */
+.book-cover {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.book-cover::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+}
+
+.book-card:hover .book-cover::before {
+    transform: translateX(100%);
+}
+
+.book-cover img {
+    transition: all 0.3s ease;
+}
+
+.book-card:hover .book-cover img {
+    transform: scale(1.1);
+}
+
+/* Placeholder book cover */
+.book-cover-placeholder {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Button effects */
+.btn-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.btn-primary:hover::before {
+    left: 100%;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    transition: all 0.3s ease;
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* Heart animation for reading list */
+.heart-btn {
+    transition: all 0.3s ease;
+}
+
+.heart-btn.active {
+    animation: pulse 0.6s ease-in-out;
+    color: #ef4444 !important;
+}
+
+.heart-btn:hover {
+    transform: scale(1.1);
+}
+
+/* Search input effects */
+.search-input-container {
+    position: relative;
+}
+
+.search-input-container::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+}
+
+.search-input-container:focus-within::after {
+    width: 100%;
+}
+
+/* Filter tag animations */
+.filter-tag {
+    animation: fadeInScale 0.3s ease-out;
+    transition: all 0.2s ease;
+}
+
+.filter-tag:hover {
+    transform: scale(1.05);
+}
+
+/* Modal animations */
+.modal-enter {
+    animation: fadeInScale 0.3s ease-out;
+}
+
+.modal-backdrop {
+    backdrop-filter: blur(4px);
+    transition: all 0.3s ease;
+}
+
+/* Toast notifications */
+.toast {
+    animation: slideInRight 0.4s ease-out;
+    transition: all 0.3s ease;
+}
+
+.toast.success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.toast.error {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+.toast.info {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.toast.warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+/* Loading spinner */
+.loading-spinner {
+    border: 3px solid #f3f4f6;
+    border-top: 3px solid #6366f1;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Pagination styles */
+.page-number {
+    transition: all 0.2s ease;
+}
+
+.page-number:hover {
+    transform: scale(1.1);
+}
+
+.page-number.active {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
+}
+
+/* Genre badge styles */
+.genre-badge {
+    background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    transition: all 0.2s ease;
+}
+
+.genre-badge:hover {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* View toggle buttons */
+.view-toggle-btn.active {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+    box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2);
+}
+
+/* Responsive grid layouts */
+.books-grid {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.books-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Dark mode transitions */
+.dark-mode-transition {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+    background: #1f2937;
+}
+
+/* Book details modal styling */
+.book-details-header {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+}
+
+/* Reading list item animations */
+.reading-list-item {
+    animation: fadeInUp 0.3s ease-out;
+    transition: all 0.3s ease;
+}
+
+.reading-list-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Stats counter animation */
+.stat-counter {
+    animation: bounce 0.8s ease-in-out;
+}
+
+/* Hover effects for interactive elements */
+.interactive-hover {
+    transition: all 0.2s ease;
+}
+
+.interactive-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Form input focus effects */
+.form-input:focus {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    border-color: #6366f1;
+}
+
+/* Custom gradient backgrounds */
+.gradient-bg {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-text {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Mobile responsiveness improvements */
+@media (max-width: 640px) {
+    .book-card:hover {
+        transform: translateY(-4px);
+    }
+    
+    .books-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+}
+
+/* Print styles */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .book-card {
+        border: 2px solid;
+    }
+    
+    .btn-primary {
+        background: #000;
+        color: #fff;
+        border: 2px solid #fff;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Focus indicators for accessibility */
+.focus-visible:focus {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+}
+
+/* Custom properties for theming */
+:root {
+    --primary-color: #6366f1;
+    --secondary-color: #8b5cf6;
+    --accent-color: #06b6d4;
+    --success-color: #10b981;
+    --error-color: #ef4444;
+    --warning-color: #f59e0b;
+    --info-color: #3b82f6;
+}
+
+/* Advanced grid animations */
+.staggered-animation > * {
+    opacity: 0;
+    animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.staggered-animation > *:nth-child(1) { animation-delay: 0.1s; }
+.staggered-animation > *:nth-child(2) { animation-delay: 0.2s; }
+.staggered-animation > *:nth-child(3) { animation-delay: 0.3s; }
+.staggered-animation > *:nth-child(4) { animation-delay: 0.4s; }
+.staggered-animation > *:nth-child(5) { animation-delay: 0.5s; }
+.staggered-animation > *:nth-child(n+6) { animation-delay: 0.6s; }
