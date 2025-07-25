@@ -259,9 +259,5 @@ open index.html (Live Server)
 - [ ] README included
 - [ ] App deployed and link shared
 
----
 
-You're now ready to build a real-world app like a pro! 🎓💻
-
-```
 
