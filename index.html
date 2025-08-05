@@ -91,6 +91,27 @@
                         <i class="fas fa-plus mr-3"></i>
                         <span>Add Book</span>
                     </button>
+                    
+                    <!-- Mobile Live Clock -->
+                    <div class="live-clock-container mobile-clock-container">
+                        <div class="live-clock mobile-clock">
+                            <div class="clock-item">
+                                <span class="clock-value" id="mobile-hours">--</span>
+                                <span class="clock-label">HOURS</span>
+                            </div>
+                            <div class="clock-separator">:</div>
+                            <div class="clock-item">
+                                <span class="clock-value" id="mobile-minutes">--</span>
+                                <span class="clock-label">MINS</span>
+                            </div>
+                            <div class="clock-separator">:</div>
+                            <div class="clock-item">
+                                <span class="clock-value" id="mobile-seconds">--</span>
+                                <span class="clock-label">SECS</span>
+                            </div>
+                        </div>
+                        <div class="clock-date mobile-date" id="mobile-live-date">--</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -156,6 +177,58 @@
                                 <div class="bg-green-300 h-1 rounded-full transition-all duration-1000" style="width: 0%" id="genres-progress"></div>
                             </div>
                         </div>
+                    </div>
+                </div>
+                
+                <!-- Roman Analog Clock -->
+                <div class="absolute top-4 left-4 roman-clock-container">
+                    <div class="roman-clock">
+                        <div class="clock-face">
+                            <!-- Hour markers and Roman numerals -->
+                            <div class="hour-marker" style="transform: rotate(0deg)">
+                                <span class="roman-numeral">XII</span>
+                            </div>
+                            <div class="hour-marker" style="transform: rotate(30deg)">
+                                <span class="roman-numeral">I</span>
+                            </div>
+                            <div class="hour-marker" style="transform: rotate(60deg)">
+                                <span class="roman-numeral">II</span>
+                            </div>
+                            <div class="hour-marker" style="transform: rotate(90deg)">
+                                <span class="roman-numeral">III</span>
+                            </div>
+                            <div class="hour-marker" style="transform: rotate(120deg)">
+                                <span class="roman-numeral">IV</span>
+                            </div>
+                            <div class="hour-marker" style="transform: rotate(150deg)">
+                                <span class="roman-numeral">V</span>
+                            </div>
+                            <div class="hour-marker" style="transform: rotate(180deg)">
+                                <span class="roman-numeral">VI</span>
+                            </div>
+                            <div class="hour-marker" style="transform: rotate(210deg)">
+                                <span class="roman-numeral">VII</span>
+                            </div>
+                            <div class="hour-marker" style="transform: rotate(240deg)">
+                                <span class="roman-numeral">VIII</span>
+                            </div>
+                            <div class="hour-marker" style="transform: rotate(270deg)">
+                                <span class="roman-numeral">IX</span>
+                            </div>
+                            <div class="hour-marker" style="transform: rotate(300deg)">
+                                <span class="roman-numeral">X</span>
+                            </div>
+                            <div class="hour-marker" style="transform: rotate(330deg)">
+                                <span class="roman-numeral">XI</span>
+                            </div>
+                            
+                            <!-- Clock hands -->
+                            <div class="clock-hand hour-hand" id="hour-hand"></div>
+                            <div class="clock-hand minute-hand" id="minute-hand"></div>
+                            <div class="clock-hand second-hand" id="second-hand"></div>
+                            <div class="clock-center"></div>
+                        </div>
+                        <div class="clock-date" id="roman-clock-date">Loading...</div>
                     </div>
                 </div>
             </div>

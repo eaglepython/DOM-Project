@@ -25,6 +25,12 @@ class BookStore {
         ];
         this.currentTypewriterIndex = 0;
         
+        // Mobile clock tracking
+        this.previousMobileHours = '';
+        this.previousMobileMinutes = '';
+        this.previousMobileSeconds = '';
+        this.previousMobileDate = '';
+        
         this.init();
     }
 
@@ -34,6 +40,7 @@ class BookStore {
         this.initializeTheme();
         this.updateReadingListUI();
         this.startTypewriterEffect();
+        this.startRomanClock();
         await this.loadBooks();
         this.setupViewMode();
         this.initializeCarousel();
@@ -1783,6 +1790,122 @@ class BookStore {
         };
         
         typewrite();
+    }
+
+    // Roman Analog Clock Display
+    startRomanClock() {
+        const updateClock = () => {
+            const now = new Date();
+            
+            // Get time components
+            const hours = now.getHours() % 12;
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            
+            // Calculate angles for hands (360 degrees = full circle)
+            const hourAngle = (hours * 30) + (minutes * 0.5); // 30 degrees per hour + minute adjustment
+            const minuteAngle = minutes * 6; // 6 degrees per minute
+            const secondAngle = seconds * 6; // 6 degrees per second
+            
+            // Update hand positions smoothly
+            const hourHand = document.getElementById('hour-hand');
+            const minuteHand = document.getElementById('minute-hand');
+            const secondHand = document.getElementById('second-hand');
+            
+            if (hourHand) {
+                hourHand.style.transform = `rotate(${hourAngle}deg)`;
+            }
+            if (minuteHand) {
+                minuteHand.style.transform = `rotate(${minuteAngle}deg)`;
+            }
+            if (secondHand) {
+                secondHand.style.transform = `rotate(${secondAngle}deg)`;
+            }
+            
+            // Update date display
+            const options = { 
+                weekday: 'short', 
+                month: 'short', 
+                day: 'numeric' 
+            };
+            const currentDate = now.toLocaleDateString('en-US', options);
+            const dateElement = document.getElementById('roman-clock-date');
+            if (dateElement) {
+                dateElement.textContent = currentDate;
+            }
+            
+            // Update mobile clock if it exists
+            this.updateMobileClockWithAnimation(
+                String(now.getHours()).padStart(2, '0'),
+                String(minutes).padStart(2, '0'),
+                String(seconds).padStart(2, '0'),
+                currentDate
+            );
+        };
+        
+        // Initial update
+        updateClock();
+        
+        // Update every second
+        setInterval(updateClock, 1000);
+    }
+
+    updateTimeWithAnimation(elementId, newValue, previousValue) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        
+        if (newValue !== previousValue) {
+            // Add rolling animation class
+            element.classList.add('rolling-digit', 'flip');
+            
+            // Update the value
+            element.textContent = newValue;
+            
+            // Remove animation class after animation completes
+            setTimeout(() => {
+                element.classList.remove('flip');
+            }, 600);
+        }
+    }
+
+    updateMobileClockWithAnimation(hours, minutes, seconds, date) {
+        // Update mobile clock elements with animation
+        this.updateClockElement('mobile-hours', hours, this.previousMobileHours);
+        this.updateClockElement('mobile-minutes', minutes, this.previousMobileMinutes);
+        this.updateClockElement('mobile-seconds', seconds, this.previousMobileSeconds);
+        
+        // Update mobile date
+        const mobileDateElement = document.getElementById('mobile-live-date');
+        if (mobileDateElement && date !== this.previousMobileDate) {
+            mobileDateElement.textContent = date;
+        }
+        
+        // Store previous values
+        this.previousMobileHours = hours;
+        this.previousMobileMinutes = minutes;
+        this.previousMobileSeconds = seconds;
+        this.previousMobileDate = date;
+    }
+
+    updateClockElement(elementId, newValue, previousValue) {
+        const element = document.getElementById(elementId);
+        if (!element) return;
+        
+        if (newValue !== previousValue) {
+            // Add rolling animation class
+            element.classList.add('flip');
+            
+            // Update the value
+            element.textContent = newValue;
+            
+            // Remove animation class after animation completes
+            setTimeout(() => {
+                element.classList.remove('flip');
+            }, 600);
+        } else if (!element.textContent || element.textContent === '--') {
+            // Initial load
+            element.textContent = newValue;
+        }
     }
 
     // Infinite Horizontal Carousel functionality

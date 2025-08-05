@@ -11,13 +11,14 @@
 
 **[View Live Application →](https://eaglepython.github.io/DOM-Project)**
 
-<img width="1524" height="881" alt="BookVault Dashboard" src="https://github.com/user-attachments/assets/42c7867e-8c58-4ef7-ba8a-ad34f0f9cee0" />
+<img width="1567" height="880" alt="image" src="https://github.com/user-attachments/assets/99698620-cf41-4559-931a-16601d3ed302" />
+
 
 ## ✨ Key Features
 
 ### 🎠 Infinite Horizontal Carousel
 - **Smooth Infinite Scroll** with CSS animations showcasing featured books
-- **10 Curated Books** with validated, high-quality cover images
+- **30 Curated Books** with validated, high-quality cover images
 - **Auto-play Toggle** with intuitive pause/play controls
 - **Hover Interactions** that pause the carousel for better UX
 - **Responsive Design** that works seamlessly on all devices
