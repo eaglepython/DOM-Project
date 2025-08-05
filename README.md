@@ -11,7 +11,8 @@
 
 **[View Live Application →](https://eaglepython.github.io/DOM-Project)**
 
-<img width="1524" height="881" alt="BookVault Dashboard" src="https://github.com/user-attachments/assets/42c7867e-8c58-4ef7-ba8a-ad34f0f9cee0" />
+<img width="1567" height="880" alt="image" src="https://github.com/user-attachments/assets/99698620-cf41-4559-931a-16601d3ed302" />
+
 
 ## ✨ Key Features
 
