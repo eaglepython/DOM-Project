@@ -13,6 +13,17 @@ class BookStore {
         this.sortBy = 'title';
         this.isDarkMode = localStorage.getItem('darkMode') === 'true';
         this.realBooksData = this.createRealBooksDatabase();
+        this.currentCarouselIndex = 0;
+        this.carouselInterval = null;
+        this.isAutoplayActive = true;
+        this.typewriterTexts = [
+            "Discover, collect, and manage your digital library",
+            "Explore thousands of books from every genre",
+            "Build your personal reading collection",
+            "Find your next favorite book today",
+            "Connect with stories that inspire you"
+        ];
+        this.currentTypewriterIndex = 0;
         
         this.init();
     }
@@ -22,8 +33,13 @@ class BookStore {
         this.setupEventListeners();
         this.initializeTheme();
         this.updateReadingListUI();
+        this.startTypewriterEffect();
         await this.loadBooks();
         this.setupViewMode();
+        this.initializeCarousel();
+        
+        // Setup responsive carousel
+        window.addEventListener('resize', () => this.handleCarouselResize());
     }
 
     // Setup all event listeners
@@ -32,6 +48,7 @@ class BookStore {
         document.getElementById('add-book-btn').addEventListener('click', () => this.openAddBookModal());
         document.getElementById('reading-list-btn').addEventListener('click', () => this.openReadingListModal());
         document.getElementById('theme-toggle').addEventListener('click', () => this.toggleTheme());
+        document.getElementById('refresh-external-btn').addEventListener('click', () => this.refreshExternalBooks());
 
         // Modal events
         document.getElementById('close-modal').addEventListener('click', () => this.closeAddBookModal());
@@ -47,6 +64,25 @@ class BookStore {
         // View toggle events
         document.getElementById('grid-view-btn').addEventListener('click', () => this.setViewMode('grid'));
         document.getElementById('list-view-btn').addEventListener('click', () => this.setViewMode('list'));
+
+        // Mobile menu events
+        document.getElementById('mobile-menu-btn').addEventListener('click', () => this.toggleMobileMenu());
+        document.getElementById('mobile-reading-list-btn').addEventListener('click', () => this.openReadingListModal());
+        document.getElementById('mobile-theme-toggle').addEventListener('click', () => this.toggleTheme());
+        document.getElementById('mobile-refresh-external-btn').addEventListener('click', () => this.refreshExternalBooks());
+        document.getElementById('mobile-add-book-btn').addEventListener('click', () => this.openAddBookModal());
+
+        // Enhanced Carousel events
+        document.getElementById('carousel-autoplay-toggle').addEventListener('click', () => this.toggleAutoplay());
+
+        // Contact form events
+        document.getElementById('contact-form').addEventListener('submit', (e) => this.handleContactForm(e));
+        
+        // Real-time validation for contact form
+        document.getElementById('contact-name').addEventListener('blur', () => this.validateContactField('name'));
+        document.getElementById('contact-email').addEventListener('blur', () => this.validateContactField('email'));
+        document.getElementById('contact-subject').addEventListener('blur', () => this.validateContactField('subject'));
+        document.getElementById('contact-message').addEventListener('blur', () => this.validateContactField('message'));
 
         // Pagination events
         document.getElementById('prev-page').addEventListener('click', () => this.previousPage());
@@ -562,30 +598,32 @@ class BookStore {
         this.showLoading(true);
         
         try {
-            // Check cache first
-            const cachedBooks = localStorage.getItem('booksCache');
-            const cacheTimestamp = localStorage.getItem('booksCacheTimestamp');
-            const cacheExpiry = 5 * 60 * 1000; // 5 minutes
+            // Load from local JSON files
+            const [booksResponse, books2Response, books3Response] = await Promise.all([
+                fetch('./books.json'),
+                fetch('./book2.json'),
+                fetch('./book3.json')
+            ]);
             
-            if (cachedBooks && cacheTimestamp && (Date.now() - parseInt(cacheTimestamp)) < cacheExpiry) {
-                this.books = JSON.parse(cachedBooks);
-                this.showToast('Loaded from cache', 'info');
-            } else {
-                const response = await fetch(this.apiUrl);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                
-                this.books = await response.json();
-                
-                // Cache the data
-                localStorage.setItem('booksCache', JSON.stringify(this.books));
-                localStorage.setItem('booksCacheTimestamp', Date.now().toString());
-            }
+            const books1 = await booksResponse.json();
+            const books2 = await books2Response.json();
+            const books3 = await books3Response.json();
+            
+            // Combine all local books
+            this.books = [...books1, ...books2, ...books3];
             
             this.filteredBooks = [...this.books];
             this.populateGenreFilter();
             this.updateStats();
             this.renderBooks();
             this.updatePagination();
+            
+            this.showToast(`Loaded ${this.books.length} books successfully!`, 'success');
+            
+            // Optionally fetch external books in background
+            setTimeout(() => {
+                this.fetchExternalBooks();
+            }, 2000);
             
         } catch (error) {
             console.error('Error loading books:', error);
@@ -634,6 +672,21 @@ class BookStore {
         this.animateCounter('total-books', totalBooks);
         this.animateCounter('total-authors', totalAuthors);
         this.animateCounter('total-genres', totalGenres);
+        
+        // Animate progress bars
+        setTimeout(() => {
+            this.animateProgressBar('books-progress', Math.min(totalBooks / 50 * 100, 100));
+            this.animateProgressBar('authors-progress', Math.min(totalAuthors / 25 * 100, 100));
+            this.animateProgressBar('genres-progress', Math.min(totalGenres / 15 * 100, 100));
+        }, 500);
+    }
+
+    // Animate progress bars
+    animateProgressBar(elementId, percentage) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.style.width = `${percentage}%`;
+        }
     }
 
     // Animate counter numbers
@@ -1348,6 +1401,144 @@ class BookStore {
         }, duration);
     }
 
+    // External API Integration Methods
+    async fetchExternalBooks() {
+        try {
+            this.showToast('Fetching books from external APIs...', 'info');
+            
+            // Try multiple sources
+            const openLibraryBooks = await this.fetchFromOpenLibrary();
+            const googleBooks = await this.fetchFromGoogleBooks();
+            
+            // Combine and deduplicate
+            const allExternalBooks = [...openLibraryBooks, ...googleBooks];
+            const uniqueBooks = this.deduplicateBooks(allExternalBooks);
+            
+            if (uniqueBooks.length > 0) {
+                // Add to current books with unique IDs
+                const startId = Math.max(...this.books.map(b => b.id), 0) + 1;
+                const newBooks = uniqueBooks.map((book, index) => ({
+                    ...book,
+                    id: startId + index,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                }));
+                
+                this.books = [...this.books, ...newBooks];
+                this.applyFiltersAndSort();
+                this.updateStats();
+                
+                this.showToast(`Successfully fetched ${uniqueBooks.length} new books!`, 'success');
+            } else {
+                this.showToast('No new books found from external APIs', 'warning');
+            }
+        } catch (error) {
+            console.error('Error fetching external books:', error);
+            this.showToast('Failed to fetch external books', 'error');
+        }
+    }
+
+    async fetchFromOpenLibrary() {
+        try {
+            const subjects = ['fiction', 'science', 'history', 'biography', 'mystery'];
+            const randomSubject = subjects[Math.floor(Math.random() * subjects.length)];
+            
+            const response = await fetch(`https://openlibrary.org/subjects/${randomSubject}.json?limit=10`);
+            const data = await response.json();
+            
+            return data.works.map(work => ({
+                title: work.title,
+                author: work.authors ? work.authors[0]?.name || 'Unknown Author' : 'Unknown Author',
+                isbn: work.isbn ? work.isbn[0] : '',
+                publishedDate: work.first_publish_year ? `${work.first_publish_year}-01-01` : '',
+                publisher: 'Open Library',
+                genre: this.capitalizeWords(randomSubject),
+                description: work.subject ? work.subject.slice(0, 3).join(', ') : 'No description available',
+                pageCount: Math.floor(Math.random() * 400) + 100,
+                language: 'English',
+                coverImage: work.cover_id 
+                    ? `https://covers.openlibrary.org/b/id/${work.cover_id}-L.jpg`
+                    : this.getRandomUnsplashImage(),
+                source: 'OpenLibrary'
+            }));
+        } catch (error) {
+            console.error('OpenLibrary API error:', error);
+            return [];
+        }
+    }
+
+    async fetchFromGoogleBooks() {
+        try {
+            const queries = ['fiction', 'science', 'history', 'technology', 'philosophy'];
+            const randomQuery = queries[Math.floor(Math.random() * queries.length)];
+            
+            const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${randomQuery}&maxResults=10&orderBy=relevance`);
+            const data = await response.json();
+            
+            if (!data.items) return [];
+            
+            return data.items.map(item => {
+                const volumeInfo = item.volumeInfo;
+                return {
+                    title: volumeInfo.title || 'Unknown Title',
+                    author: volumeInfo.authors ? volumeInfo.authors[0] : 'Unknown Author',
+                    isbn: volumeInfo.industryIdentifiers ? volumeInfo.industryIdentifiers[0]?.identifier || '' : '',
+                    publishedDate: volumeInfo.publishedDate || '',
+                    publisher: volumeInfo.publisher || 'Unknown Publisher',
+                    genre: volumeInfo.categories ? volumeInfo.categories[0] : 'General',
+                    description: volumeInfo.description ? this.truncateText(volumeInfo.description, 200) : 'No description available',
+                    pageCount: volumeInfo.pageCount || Math.floor(Math.random() * 400) + 100,
+                    language: volumeInfo.language || 'English',
+                    coverImage: volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail.replace('http:', 'https:') : this.getRandomUnsplashImage(),
+                    source: 'GoogleBooks'
+                };
+            });
+        } catch (error) {
+            console.error('Google Books API error:', error);
+            return [];
+        }
+    }
+
+    deduplicateBooks(books) {
+        const seen = new Set();
+        const existingTitles = new Set(this.books.map(b => b.title.toLowerCase()));
+        
+        return books.filter(book => {
+            const key = `${book.title.toLowerCase()}-${book.author.toLowerCase()}`;
+            if (seen.has(key) || existingTitles.has(book.title.toLowerCase())) {
+                return false;
+            }
+            seen.add(key);
+            return true;
+        });
+    }
+
+    getRandomUnsplashImage() {
+        const bookImages = [
+            'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
+            'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
+            'https://images.unsplash.com/photo-1512820790803-83ca734da794?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
+            'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
+            'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
+            'https://images.unsplash.com/photo-1569701947767-d2da7d1d5fd6?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'
+        ];
+        return bookImages[Math.floor(Math.random() * bookImages.length)];
+    }
+
+    capitalizeWords(str) {
+        return str.replace(/\b\w/g, char => char.toUpperCase());
+    }
+
+    truncateText(text, maxLength) {
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength).replace(/\s+\S*$/, '') + '...';
+    }
+
+    // Refresh external books manually
+    async refreshExternalBooks() {
+        await this.fetchExternalBooks();
+    }
+
     getToastIcon(type) {
         const icons = {
             success: 'fa-check-circle',
@@ -1356,6 +1547,337 @@ class BookStore {
             info: 'fa-info-circle'
         };
         return icons[type] || icons.info;
+    }
+
+    // Mobile Menu functionality
+    toggleMobileMenu() {
+        const mobileMenu = document.getElementById('mobile-menu');
+        const menuBtn = document.getElementById('mobile-menu-btn');
+        const icon = menuBtn.querySelector('i');
+        
+        mobileMenu.classList.toggle('hidden');
+        
+        if (mobileMenu.classList.contains('hidden')) {
+            icon.className = 'fas fa-bars text-xl';
+        } else {
+            icon.className = 'fas fa-times text-xl';
+        }
+    }
+
+    // Typewriter Effect
+    startTypewriterEffect() {
+        const typewriterElement = document.getElementById('typewriter-text');
+        let currentText = '';
+        let currentIndex = 0;
+        let isDeleting = false;
+        
+        const typewrite = () => {
+            const fullText = this.typewriterTexts[this.currentTypewriterIndex];
+            
+            if (isDeleting) {
+                currentText = fullText.substring(0, currentText.length - 1);
+            } else {
+                currentText = fullText.substring(0, currentText.length + 1);
+            }
+            
+            typewriterElement.textContent = currentText;
+            
+            let typeSpeed = isDeleting ? 50 : 100;
+            
+            if (!isDeleting && currentText === fullText) {
+                typeSpeed = 2000; // Pause at end
+                isDeleting = true;
+            } else if (isDeleting && currentText === '') {
+                isDeleting = false;
+                this.currentTypewriterIndex = (this.currentTypewriterIndex + 1) % this.typewriterTexts.length;
+                typeSpeed = 500; // Pause before typing next text
+            }
+            
+            setTimeout(typewrite, typeSpeed);
+        };
+        
+        typewrite();
+    }
+
+    // Infinite Horizontal Carousel functionality
+    initializeCarousel() {
+        if (this.books.length > 0) {
+            this.filterBooksWithImages().then(() => {
+                this.renderInfiniteCarousel();
+                this.setupCarouselControls();
+            });
+        }
+    }
+
+    setupCarouselControls() {
+        const carousel = document.getElementById('infinite-carousel');
+        
+        // Initialize status
+        this.updateCarouselStatus();
+        
+        // Pause on hover
+        carousel.addEventListener('mouseenter', () => {
+            if (this.isAutoplayActive) {
+                carousel.style.animationPlayState = 'paused';
+            }
+        });
+        
+        carousel.addEventListener('mouseleave', () => {
+            if (this.isAutoplayActive) {
+                carousel.style.animationPlayState = 'running';
+            }
+        });
+    }
+
+    updateCarouselStatus() {
+        // Status display removed - functionality maintained through button states
+        const icon = document.getElementById('autoplay-icon');
+        const button = document.getElementById('carousel-autoplay-toggle');
+        
+        if (this.isAutoplayActive) {
+            if (icon) icon.className = 'fas fa-pause';
+            if (button) button.title = 'Pause auto-play';
+        } else {
+            if (icon) icon.className = 'fas fa-play';
+            if (button) button.title = 'Start auto-play';
+        }
+    }
+
+    renderInfiniteCarousel() {
+        const carousel = document.getElementById('infinite-carousel');
+        const bookCount = document.getElementById('carousel-book-count');
+        
+        if (!this.validBooks || this.validBooks.length === 0) {
+            carousel.innerHTML = '<p class="text-gray-500 dark:text-gray-400 p-8">No featured books available</p>';
+            if (bookCount) {
+                bookCount.textContent = '0 Books';
+            }
+            return;
+        }
+
+        // Duplicate books for infinite scroll effect
+        const duplicatedBooks = [...this.validBooks, ...this.validBooks];
+        
+        carousel.innerHTML = duplicatedBooks.map((book, index) => `
+            <div class="infinite-book-card" onclick="window.bookStore.openBookDetails(${book.id})" data-book-id="${book.id}">
+                <div class="infinite-book-cover">
+                    <img src="${book.coverImage}" alt="${book.title}" class="w-full h-full object-cover" loading="lazy">
+                </div>
+                <div class="infinite-book-info">
+                    <div class="infinite-book-genre">${book.genre.split(',')[0].trim()}</div>
+                    <h4 class="infinite-book-title">${book.title}</h4>
+                    <p class="infinite-book-author">by ${book.author}</p>
+                    <div class="infinite-book-stats">
+                        <span><i class="fas fa-calendar mr-1 text-primary"></i>${new Date(book.publishedDate).getFullYear()}</span>
+                        <span><i class="fas fa-book mr-1 text-secondary"></i>${book.pageCount}p</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        // Update book count (if element exists)
+        if (bookCount) {
+            bookCount.textContent = `${this.validBooks.length} Books`;
+        }
+    }
+
+    toggleAutoplay() {
+        this.isAutoplayActive = !this.isAutoplayActive;
+        const icon = document.getElementById('autoplay-icon');
+        const button = document.getElementById('carousel-autoplay-toggle');
+        const carousel = document.getElementById('infinite-carousel');
+        
+        if (this.isAutoplayActive) {
+            if (icon) icon.className = 'fas fa-pause';
+            if (button) button.title = 'Pause auto-play';
+            if (carousel) carousel.style.animationPlayState = 'running';
+        } else {
+            if (icon) icon.className = 'fas fa-play';
+            if (button) button.title = 'Start auto-play';
+            if (carousel) carousel.style.animationPlayState = 'paused';
+        }
+    }
+
+    async filterBooksWithImages() {
+        this.validBooks = [];
+        
+        // Try to get 10 books with valid images
+        for (const book of this.books.slice(0, 20)) { // Check first 20 books to get 10 valid ones
+            if (this.validBooks.length >= 10) break; // Stop when we have 10 books
+            
+            try {
+                const imageValid = await this.checkImageUrl(book.coverImage);
+                if (imageValid) {
+                    this.validBooks.push(book);
+                    console.log(`Valid book added: ${book.title}`);
+                }
+            } catch (error) {
+                console.log(`Invalid image for book: ${book.title}`);
+            }
+        }
+        
+        // If still not enough books, add some without image validation
+        if (this.validBooks.length < 10) {
+            const remainingBooks = this.books.slice(0, 15).filter(book => 
+                !this.validBooks.some(validBook => validBook.id === book.id)
+            );
+            
+            this.validBooks.push(...remainingBooks.slice(0, 10 - this.validBooks.length));
+        }
+        
+        console.log(`Filtered books count: ${this.validBooks.length}`);
+    }
+
+    checkImageUrl(url) {
+        return new Promise((resolve) => {
+            // Quick check for common valid image patterns
+            const isValidImageUrl = url && (
+                url.includes('unsplash.com') ||
+                url.includes('googleapis.com') ||
+                url.includes('covers.openlibrary.org') ||
+                url.startsWith('data:image') ||
+                url.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
+            );
+            
+            if (!isValidImageUrl) {
+                resolve(false);
+                return;
+            }
+            
+            const img = new Image();
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+            img.src = url;
+            
+            // Shorter timeout for faster loading
+            setTimeout(() => resolve(false), 2000);
+        });
+    }
+
+    // Contact Form functionality
+    handleContactForm(e) {
+        e.preventDefault();
+        
+        const formData = {
+            name: document.getElementById('contact-name').value.trim(),
+            email: document.getElementById('contact-email').value.trim(),
+            subject: document.getElementById('contact-subject').value.trim(),
+            message: document.getElementById('contact-message').value.trim()
+        };
+        
+        // Validate all fields
+        let isValid = true;
+        Object.keys(formData).forEach(field => {
+            if (!this.validateContactField(field)) {
+                isValid = false;
+            }
+        });
+        
+        if (!isValid) {
+            this.showToast('Please fix the errors in the form', 'error');
+            return;
+        }
+        
+        // Simulate form submission
+        this.submitContactForm(formData);
+    }
+
+    validateContactField(fieldName) {
+        const field = document.getElementById(`contact-${fieldName}`);
+        const errorElement = document.getElementById(`${fieldName}-error`);
+        const value = field.value.trim();
+        
+        let isValid = true;
+        let errorMessage = '';
+        
+        switch (fieldName) {
+            case 'name':
+                if (!value) {
+                    errorMessage = 'Name is required';
+                    isValid = false;
+                } else if (value.length < 2) {
+                    errorMessage = 'Name must be at least 2 characters';
+                    isValid = false;
+                }
+                break;
+                
+            case 'email':
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!value) {
+                    errorMessage = 'Email is required';
+                    isValid = false;
+                } else if (!emailRegex.test(value)) {
+                    errorMessage = 'Please enter a valid email address';
+                    isValid = false;
+                }
+                break;
+                
+            case 'subject':
+                if (!value) {
+                    errorMessage = 'Subject is required';
+                    isValid = false;
+                } else if (value.length < 5) {
+                    errorMessage = 'Subject must be at least 5 characters';
+                    isValid = false;
+                }
+                break;
+                
+            case 'message':
+                if (!value) {
+                    errorMessage = 'Message is required';
+                    isValid = false;
+                } else if (value.length < 10) {
+                    errorMessage = 'Message must be at least 10 characters';
+                    isValid = false;
+                }
+                break;
+        }
+        
+        if (isValid) {
+            field.classList.remove('border-red-500');
+            field.classList.add('border-green-500');
+            errorElement.classList.add('hidden');
+        } else {
+            field.classList.remove('border-green-500');
+            field.classList.add('border-red-500');
+            errorElement.textContent = errorMessage;
+            errorElement.classList.remove('hidden');
+        }
+        
+        return isValid;
+    }
+
+    async submitContactForm(formData) {
+        const submitBtn = document.getElementById('contact-submit');
+        const submitText = document.getElementById('submit-text');
+        
+        // Show loading state
+        submitBtn.disabled = true;
+        submitText.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+        
+        try {
+            // Simulate API call
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Reset form
+            document.getElementById('contact-form').reset();
+            
+            // Remove validation styles
+            ['name', 'email', 'subject', 'message'].forEach(field => {
+                const fieldElement = document.getElementById(`contact-${field}`);
+                fieldElement.classList.remove('border-green-500', 'border-red-500');
+                document.getElementById(`${field}-error`).classList.add('hidden');
+            });
+            
+            this.showToast('Message sent successfully! We\'ll get back to you soon.', 'success');
+            
+        } catch (error) {
+            this.showToast('Failed to send message. Please try again.', 'error');
+        } finally {
+            // Reset button state
+            submitBtn.disabled = false;
+            submitText.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send Message';
+        }
     }
 }
 
