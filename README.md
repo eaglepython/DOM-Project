@@ -18,7 +18,7 @@
 
 ### 🎠 Infinite Horizontal Carousel
 - **Smooth Infinite Scroll** with CSS animations showcasing featured books
-- **10 Curated Books** with validated, high-quality cover images
+- **30 Curated Books** with validated, high-quality cover images
 - **Auto-play Toggle** with intuitive pause/play controls
 - **Hover Interactions** that pause the carousel for better UX
 - **Responsive Design** that works seamlessly on all devices
