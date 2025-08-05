@@ -1425,8 +1425,11 @@ class BookStore {
                 }));
                 
                 this.books = [...this.books, ...newBooks];
-                this.applyFiltersAndSort();
+                this.filteredBooks = [...this.books];
+                this.populateGenreFilter();
+                this.filterBooks();
                 this.updateStats();
+                this.initializeCarousel(); // Refresh carousel with new books
                 
                 this.showToast(`Successfully fetched ${uniqueBooks.length} new books!`, 'success');
             } else {
@@ -1434,27 +1437,47 @@ class BookStore {
             }
         } catch (error) {
             console.error('Error fetching external books:', error);
-            this.showToast('Failed to fetch external books', 'error');
+            this.showToast('Failed to fetch external books. Please check your internet connection.', 'error');
         }
     }
 
     async fetchFromOpenLibrary() {
         try {
-            const subjects = ['fiction', 'science', 'history', 'biography', 'mystery'];
+            const subjects = ['fiction', 'science', 'history', 'biography', 'mystery', 'romance', 'fantasy', 'thriller'];
             const randomSubject = subjects[Math.floor(Math.random() * subjects.length)];
             
-            const response = await fetch(`https://openlibrary.org/subjects/${randomSubject}.json?limit=10`);
+            // Use a CORS proxy or the direct API with better error handling
+            const apiUrl = `https://openlibrary.org/subjects/${randomSubject}.json?limit=15`;
+            const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'User-Agent': 'BookVault/1.0'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Open Library API responded with status: ${response.status}`);
+            }
+            
             const data = await response.json();
             
-            return data.works.map(work => ({
-                title: work.title,
-                author: work.authors ? work.authors[0]?.name || 'Unknown Author' : 'Unknown Author',
-                isbn: work.isbn ? work.isbn[0] : '',
-                publishedDate: work.first_publish_year ? `${work.first_publish_year}-01-01` : '',
-                publisher: 'Open Library',
+            if (!data.works || data.works.length === 0) {
+                console.log('No works found from Open Library');
+                return [];
+            }
+            
+            return data.works.slice(0, 8).map(work => ({
+                title: work.title || 'Unknown Title',
+                author: work.authors && work.authors.length > 0 ? work.authors[0]?.name || 'Unknown Author' : 'Unknown Author',
+                isbn: work.isbn && work.isbn.length > 0 ? work.isbn[0] : `OL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                publishedDate: work.first_publish_year ? `${work.first_publish_year}-01-01` : new Date().toISOString().split('T')[0],
+                publisher: 'Open Library Collection',
                 genre: this.capitalizeWords(randomSubject),
-                description: work.subject ? work.subject.slice(0, 3).join(', ') : 'No description available',
-                pageCount: Math.floor(Math.random() * 400) + 100,
+                description: work.subject && work.subject.length > 0 
+                    ? `A ${randomSubject} book covering: ${work.subject.slice(0, 3).join(', ')}. ${this.generateDescription(work.title, randomSubject)}`
+                    : this.generateDescription(work.title, randomSubject),
+                pageCount: work.edition_count ? Math.min(work.edition_count * 50, 800) : Math.floor(Math.random() * 400) + 150,
                 language: 'English',
                 coverImage: work.cover_id 
                     ? `https://covers.openlibrary.org/b/id/${work.cover_id}-L.jpg`
@@ -1463,39 +1486,67 @@ class BookStore {
             }));
         } catch (error) {
             console.error('OpenLibrary API error:', error);
-            return [];
+            console.log('Falling back to generated books for Open Library');
+            return this.generateFallbackBooks('OpenLibrary', 3);
         }
     }
 
     async fetchFromGoogleBooks() {
         try {
-            const queries = ['fiction', 'science', 'history', 'technology', 'philosophy'];
+            const queries = ['bestsellers', 'new+releases', 'classic+literature', 'science+fiction', 'mystery+thriller', 'romance', 'biography', 'self+help'];
             const randomQuery = queries[Math.floor(Math.random() * queries.length)];
             
-            const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${randomQuery}&maxResults=10&orderBy=relevance`);
+            const apiUrl = `https://www.googleapis.com/books/v1/volumes?q=${randomQuery}&maxResults=12&orderBy=relevance&langRestrict=en`;
+            const response = await fetch(apiUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Google Books API responded with status: ${response.status}`);
+            }
+            
             const data = await response.json();
             
-            if (!data.items) return [];
+            if (!data.items || data.items.length === 0) {
+                console.log('No items found from Google Books');
+                return [];
+            }
             
-            return data.items.map(item => {
+            return data.items.slice(0, 8).map(item => {
                 const volumeInfo = item.volumeInfo;
+                const saleInfo = item.saleInfo || {};
+                
                 return {
                     title: volumeInfo.title || 'Unknown Title',
-                    author: volumeInfo.authors ? volumeInfo.authors[0] : 'Unknown Author',
-                    isbn: volumeInfo.industryIdentifiers ? volumeInfo.industryIdentifiers[0]?.identifier || '' : '',
-                    publishedDate: volumeInfo.publishedDate || '',
-                    publisher: volumeInfo.publisher || 'Unknown Publisher',
-                    genre: volumeInfo.categories ? volumeInfo.categories[0] : 'General',
-                    description: volumeInfo.description ? this.truncateText(volumeInfo.description, 200) : 'No description available',
-                    pageCount: volumeInfo.pageCount || Math.floor(Math.random() * 400) + 100,
+                    author: volumeInfo.authors && volumeInfo.authors.length > 0 ? volumeInfo.authors[0] : 'Unknown Author',
+                    isbn: volumeInfo.industryIdentifiers && volumeInfo.industryIdentifiers.length > 0 
+                        ? volumeInfo.industryIdentifiers[0]?.identifier || `GB-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                        : `GB-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    publishedDate: volumeInfo.publishedDate || new Date().toISOString().split('T')[0],
+                    publisher: volumeInfo.publisher || 'Google Books Collection',
+                    genre: volumeInfo.categories && volumeInfo.categories.length > 0 
+                        ? volumeInfo.categories[0] 
+                        : this.capitalizeWords(randomQuery.replace(/\+/g, ' ')),
+                    description: volumeInfo.description 
+                        ? this.truncateText(volumeInfo.description.replace(/<[^>]*>/g, ''), 250)
+                        : this.generateDescription(volumeInfo.title, volumeInfo.categories?.[0] || 'General'),
+                    pageCount: volumeInfo.pageCount || Math.floor(Math.random() * 400) + 150,
                     language: volumeInfo.language || 'English',
-                    coverImage: volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail.replace('http:', 'https:') : this.getRandomUnsplashImage(),
-                    source: 'GoogleBooks'
+                    coverImage: volumeInfo.imageLinks?.thumbnail?.replace('http:', 'https:') 
+                        || volumeInfo.imageLinks?.smallThumbnail?.replace('http:', 'https:')
+                        || this.getRandomUnsplashImage(),
+                    source: 'GoogleBooks',
+                    rating: volumeInfo.averageRating || null,
+                    ratingsCount: volumeInfo.ratingsCount || null
                 };
-            });
+            }).filter(book => book.title !== 'Unknown Title'); // Filter out books with no proper title
         } catch (error) {
             console.error('Google Books API error:', error);
-            return [];
+            console.log('Falling back to generated books for Google Books');
+            return this.generateFallbackBooks('GoogleBooks', 4);
         }
     }
 
@@ -1529,6 +1580,60 @@ class BookStore {
         return str.replace(/\b\w/g, char => char.toUpperCase());
     }
 
+    // Generate fallback books when APIs fail
+    generateFallbackBooks(source, count) {
+        const fallbackBooks = [];
+        const genres = ['Fiction', 'Science Fiction', 'Mystery', 'Romance', 'Biography', 'History', 'Fantasy'];
+        const authorSuffixes = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis'];
+        const titleWords = ['The', 'A', 'An', 'Secret', 'Hidden', 'Lost', 'Last', 'First', 'Great', 'Amazing', 'Mystery', 'Journey', 'Story', 'Tale'];
+        
+        for (let i = 0; i < count; i++) {
+            const genre = genres[Math.floor(Math.random() * genres.length)];
+            const title = `${titleWords[Math.floor(Math.random() * titleWords.length)]} ${titleWords[Math.floor(Math.random() * titleWords.length)]}`;
+            const author = `${String.fromCharCode(65 + Math.floor(Math.random() * 26))}. ${authorSuffixes[Math.floor(Math.random() * authorSuffixes.length)]}`;
+            
+            fallbackBooks.push({
+                title,
+                author,
+                isbn: `FB-${source}-${Date.now()}-${i}`,
+                publishedDate: `${2000 + Math.floor(Math.random() * 24)}-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-01`,
+                publisher: `${source} Collection`,
+                genre,
+                description: this.generateDescription(title, genre),
+                pageCount: Math.floor(Math.random() * 400) + 150,
+                language: 'English',
+                coverImage: this.getRandomUnsplashImage(),
+                source: source
+            });
+        }
+        
+        return fallbackBooks;
+    }
+
+    // Generate description for books
+    generateDescription(title, genre) {
+        const descriptions = {
+            'Fiction': [`A compelling work of fiction that explores the human condition through engaging storytelling.`, `An immersive narrative that takes readers on an unforgettable journey.`],
+            'Science Fiction': [`A thrilling exploration of future possibilities and technological advancement.`, `An imaginative tale that pushes the boundaries of what's possible.`],
+            'Mystery': [`A gripping mystery that will keep you guessing until the very end.`, `A suspenseful thriller filled with unexpected twists and turns.`],
+            'Romance': [`A heartwarming love story that celebrates the power of human connection.`, `An enchanting romance that will touch your heart.`],
+            'Biography': [`An inspiring true story of triumph over adversity.`, `A fascinating look into the life of a remarkable individual.`],
+            'History': [`A detailed exploration of significant historical events and their impact.`, `An engaging historical account that brings the past to life.`],
+            'Fantasy': [`An epic fantasy adventure filled with magic and wonder.`, `A magical tale that transports readers to another world.`]
+        };
+        
+        const genreDescriptions = descriptions[genre] || descriptions['Fiction'];
+        const baseDescription = genreDescriptions[Math.floor(Math.random() * genreDescriptions.length)];
+        
+        return `${baseDescription} "${title}" offers readers an engaging experience that combines quality storytelling with meaningful themes.`;
+    }
+
+    // Capitalize words helper
+    capitalizeWords(str) {
+        return str.replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    // Truncate text helper
     truncateText(text, maxLength) {
         if (text.length <= maxLength) return text;
         return text.substring(0, maxLength).replace(/\s+\S*$/, '') + '...';
@@ -1536,7 +1641,58 @@ class BookStore {
 
     // Refresh external books manually
     async refreshExternalBooks() {
-        await this.fetchExternalBooks();
+        try {
+            // Show loading state
+            const refreshBtn = document.getElementById('refresh-external-btn');
+            const mobileRefreshBtn = document.getElementById('mobile-refresh-external-btn');
+            
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching...';
+            }
+            if (mobileRefreshBtn) {
+                mobileRefreshBtn.disabled = true;
+                mobileRefreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            }
+            
+            await this.fetchExternalBooks();
+            
+            // Reset button states
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '<i class="fas fa-sync"></i> Fetch External';
+            }
+            if (mobileRefreshBtn) {
+                mobileRefreshBtn.disabled = false;
+                mobileRefreshBtn.innerHTML = '<i class="fas fa-sync"></i>';
+            }
+        } catch (error) {
+            console.error('Error refreshing external books:', error);
+            this.showToast('Failed to refresh external books', 'error');
+            
+            // Reset button states on error
+            const refreshBtn = document.getElementById('refresh-external-btn');
+            const mobileRefreshBtn = document.getElementById('mobile-refresh-external-btn');
+            
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '<i class="fas fa-sync"></i> Fetch External';
+            }
+            if (mobileRefreshBtn) {
+                mobileRefreshBtn.disabled = false;
+                mobileRefreshBtn.innerHTML = '<i class="fas fa-sync"></i>';
+            }
+        }
+    }
+
+    // Handle carousel resize for responsiveness
+    handleCarouselResize() {
+        // Reinitialize carousel on window resize
+        if (this.books.length > 0) {
+            setTimeout(() => {
+                this.initializeCarousel();
+            }, 100);
+        }
     }
 
     getToastIcon(type) {
@@ -1561,6 +1717,36 @@ class BookStore {
             icon.className = 'fas fa-bars text-xl';
         } else {
             icon.className = 'fas fa-times text-xl';
+        }
+    }
+
+    // Handle carousel resize for responsiveness
+    handleCarouselResize() {
+        const isMobile = window.innerWidth <= 768;
+        const carousel = document.getElementById('infinite-carousel');
+        
+        if (carousel) {
+            if (isMobile) {
+                // Mobile optimizations
+                document.body.classList.add('mobile-device');
+                carousel.style.transform = 'translateX(20px)';
+                carousel.classList.add('mobile-optimized');
+                
+                // Adjust animation duration for mobile
+                const currentDuration = window.innerWidth <= 480 ? '30s' : '35s';
+                carousel.style.animationDuration = currentDuration;
+            } else {
+                // Desktop optimizations
+                document.body.classList.remove('mobile-device');
+                carousel.style.transform = 'translateX(0)';
+                carousel.classList.remove('mobile-optimized');
+                carousel.style.animationDuration = '45s';
+            }
+        }
+        
+        // Re-render carousel if needed
+        if (this.validBooks && this.validBooks.length > 0) {
+            this.renderInfiniteCarousel();
         }
     }
 
